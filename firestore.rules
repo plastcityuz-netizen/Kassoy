@@ -1,0 +1,319 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Shared hardened helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidUserWorkspace(data) {
+      return data.userId == request.auth.uid &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 160)) &&
+             (!('activeCompanyId' in data) || (data.activeCompanyId is string && data.activeCompanyId.size() <= 128)) &&
+             (!('activeRole' in data) || (data.activeRole is string && data.activeRole.size() <= 40)) &&
+             data.planId in ['start', 'business', 'premium', 'enterprise'] &&
+             (!('billingCycle' in data) || data.billingCycle in ['monthly', 'yearly']) &&
+             data.subscriptionStatus in ['trial', 'active', 'past_due', 'read_only'] &&
+             (!('trialDaysRemaining' in data) || (data.trialDaysRemaining is int && data.trialDaysRemaining >= 0 && data.trialDaysRemaining <= 365)) &&
+             (!('aiQuestionsUsed' in data) || (data.aiQuestionsUsed is int && data.aiQuestionsUsed >= 0 && data.aiQuestionsUsed <= 100000));
+    }
+
+    function isValidCompany(data) {
+      return data.userId == request.auth.uid &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 120 &&
+             data.stir is string && data.stir.matches('^[0-9]{9}$') &&
+             data.taxRegime in ['QQS', 'AYLANMA'] &&
+             data.industry in ['SAVDO', 'ISHLAB_CHIQARISH', 'XIZMAT'] &&
+             data.city is string && data.city.size() >= 2 && data.city.size() <= 60 &&
+             (!('qqsRate' in data) || (data.qqsRate is number && data.qqsRate >= 0 && data.qqsRate <= 50)) &&
+             (!('inpsRate' in data) || (data.inpsRate is number && data.inpsRate >= 0 && data.inpsRate <= 50)) &&
+             (!('incomeTaxRate' in data) || (data.incomeTaxRate is number && data.incomeTaxRate >= 0 && data.incomeTaxRate <= 50)) &&
+             (!('cashBalanceUzs' in data) || (data.cashBalanceUzs is int && data.cashBalanceUzs >= 0)) &&
+             (!('bankBalanceUzs' in data) || (data.bankBalanceUzs is int && data.bankBalanceUzs >= 0));
+    }
+
+    function isValidTransaction(data) {
+      return data.userId == request.auth.uid &&
+             data.companyId is string && isValidId(data.companyId) &&
+             data.type in ['SALE', 'PURCHASE', 'EXPENSE', 'PAYROLL'] &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 80 &&
+             data.counterparty is string && data.counterparty.size() >= 1 && data.counterparty.size() <= 120 &&
+             data.amountUzs is int && data.amountUzs >= 0 && data.amountUzs <= 1000000000000 &&
+             data.status in ['PAID', 'PENDING', 'OVERDUE'] &&
+             data.dateDisplay is string && data.dateDisplay.size() >= 8 && data.dateDisplay.size() <= 20 &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 300));
+    }
+
+    function isValidInventoryItem(data) {
+      return data.userId == request.auth.uid &&
+             data.companyId is string && isValidId(data.companyId) &&
+             data.sku is string && data.sku.size() >= 2 && data.sku.size() <= 40 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 120 &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 60)) &&
+             data.quantity is int && data.quantity >= 0 && data.quantity <= 10000000 &&
+             data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 20 &&
+             data.unitCostUzs is int && data.unitCostUzs >= 0 && data.unitCostUzs <= 100000000000 &&
+             data.minThreshold is int && data.minThreshold >= 0 && data.minThreshold <= 1000000;
+    }
+
+    function isValidProductionOrder(data) {
+      return data.userId == request.auth.uid &&
+             data.companyId is string && isValidId(data.companyId) &&
+             data.productName is string && data.productName.size() >= 2 && data.productName.size() <= 120 &&
+             data.bomSummary is string && data.bomSummary.size() >= 2 && data.bomSummary.size() <= 200 &&
+             data.targetQty is int && data.targetQty >= 1 && data.targetQty <= 10000000 &&
+             data.completedQty is int && data.completedQty >= 0 && data.completedQty <= 10000000 &&
+             data.unitCostUzs is int && data.unitCostUzs >= 0 && data.unitCostUzs <= 100000000000 &&
+             data.defectPercent is number && data.defectPercent >= 0 && data.defectPercent <= 100 &&
+             data.status in ['PLANNED', 'IN_PROGRESS', 'COMPLETED'];
+    }
+
+    function isValidEmployee(data) {
+      return data.userId == request.auth.uid &&
+             data.companyId is string && isValidId(data.companyId) &&
+             data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 100 &&
+             data.roleKey is string && data.roleKey.size() >= 2 && data.roleKey.size() <= 40 &&
+             data.department is string && data.department.size() >= 2 && data.department.size() <= 60 &&
+             data.phone is string && data.phone.size() >= 7 && data.phone.size() <= 25 &&
+             data.attendancePercent is int && data.attendancePercent >= 0 && data.attendancePercent <= 100 &&
+             data.salaryUzs is int && data.salaryUzs >= 0 && data.salaryUzs <= 10000000000 &&
+             data.status in ['ACTIVE', 'ON_LEAVE'];
+    }
+
+    function isValidDebtRecord(data) {
+      return data.userId == request.auth.uid &&
+             data.companyId is string && isValidId(data.companyId) &&
+             data.counterparty is string && data.counterparty.size() >= 2 && data.counterparty.size() <= 120 &&
+             data.direction in ['RECEIVABLE', 'PAYABLE'] &&
+             data.amountUzs is int && data.amountUzs >= 0 && data.amountUzs <= 1000000000000 &&
+             data.dueDateDisplay is string && data.dueDateDisplay.size() >= 8 && data.dueDateDisplay.size() <= 20 &&
+             data.overdueDays is int && data.overdueDays >= 0 && data.overdueDays <= 3650 &&
+             data.reminderSent is bool;
+    }
+
+    function isValidAuditLog(data) {
+      return data.userId == request.auth.uid &&
+             data.companyId is string && isValidId(data.companyId) &&
+             data.actorRole is string && data.actorRole.size() >= 2 && data.actorRole.size() <= 40 &&
+             data.actionTitle is string && data.actionTitle.size() >= 2 && data.actionTitle.size() <= 160 &&
+             data.moduleKey is string && data.moduleKey.size() >= 2 && data.moduleKey.size() <= 40 &&
+             (!('amountUzs' in data) || (data.amountUzs is int && data.amountUzs >= 0));
+    }
+
+    // User Workspace root document
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'planId', 'subscriptionStatus', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'activeCompanyId', 'activeRole', 'planId', 'billingCycle', 'subscriptionStatus', 'trialDaysRemaining', 'aiQuestionsUsed', 'createdAt', 'updatedAt']) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       isValidUserWorkspace(incoming());
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       isValidUserWorkspace(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'activeCompanyId', 'activeRole', 'planId', 'billingCycle', 'subscriptionStatus', 'trialDaysRemaining', 'aiQuestionsUsed', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Companies
+      match /companies/{companyId} {
+        allow get: if isOwner(userId) && isValidId(companyId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(companyId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'stir', 'taxRegime', 'industry', 'city', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'stir', 'taxRegime', 'industry', 'city', 'qqsRate', 'inpsRate', 'incomeTaxRate', 'cashBalanceUzs', 'bankBalanceUzs', 'createdAt', 'updatedAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidCompany(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(companyId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidCompany(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'stir', 'taxRegime', 'industry', 'city', 'qqsRate', 'inpsRate', 'incomeTaxRate', 'cashBalanceUzs', 'bankBalanceUzs', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(companyId);
+      }
+
+      // Transactions
+      match /transactions/{transactionId} {
+        allow get: if isOwner(userId) && isValidId(transactionId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(transactionId) &&
+                         incoming().keys().hasAll(['userId', 'companyId', 'type', 'category', 'counterparty', 'amountUzs', 'status', 'dateDisplay', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'companyId', 'type', 'category', 'counterparty', 'amountUzs', 'status', 'dateDisplay', 'note', 'createdAt', 'updatedAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidTransaction(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(transactionId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().companyId == existing().companyId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidTransaction(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'amountUzs', 'category', 'counterparty', 'note', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(transactionId);
+      }
+
+      // Inventory
+      match /inventory/{itemId} {
+        allow get: if isOwner(userId) && isValidId(itemId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(itemId) &&
+                         incoming().keys().hasAll(['userId', 'companyId', 'sku', 'name', 'quantity', 'unit', 'unitCostUzs', 'minThreshold', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'companyId', 'sku', 'name', 'category', 'quantity', 'unit', 'unitCostUzs', 'minThreshold', 'createdAt', 'updatedAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidInventoryItem(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(itemId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().companyId == existing().companyId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidInventoryItem(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'category', 'quantity', 'unitCostUzs', 'minThreshold', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(itemId);
+      }
+
+      // Production Orders
+      match /production/{orderId} {
+        allow get: if isOwner(userId) && isValidId(orderId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(orderId) &&
+                         incoming().keys().hasAll(['userId', 'companyId', 'productName', 'bomSummary', 'targetQty', 'completedQty', 'unitCostUzs', 'defectPercent', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'companyId', 'productName', 'bomSummary', 'targetQty', 'completedQty', 'unitCostUzs', 'defectPercent', 'status', 'createdAt', 'updatedAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidProductionOrder(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(orderId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().companyId == existing().companyId &&
+                         incoming().createdAt == existing().createdAt &&
+                         existing().status != 'COMPLETED' &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidProductionOrder(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['completedQty', 'defectPercent', 'status', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(orderId);
+      }
+
+      // Employees
+      match /employees/{employeeId} {
+        allow get: if isOwner(userId) && isValidId(employeeId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(employeeId) &&
+                         incoming().keys().hasAll(['userId', 'companyId', 'fullName', 'roleKey', 'department', 'phone', 'attendancePercent', 'salaryUzs', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'companyId', 'fullName', 'roleKey', 'department', 'phone', 'attendancePercent', 'salaryUzs', 'status', 'createdAt', 'updatedAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidEmployee(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(employeeId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().companyId == existing().companyId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidEmployee(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['roleKey', 'department', 'attendancePercent', 'salaryUzs', 'status', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(employeeId);
+      }
+
+      // Debts
+      match /debts/{debtId} {
+        allow get: if isOwner(userId) && isValidId(debtId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(debtId) &&
+                         incoming().keys().hasAll(['userId', 'companyId', 'counterparty', 'direction', 'amountUzs', 'dueDateDisplay', 'overdueDays', 'reminderSent', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'companyId', 'counterparty', 'direction', 'amountUzs', 'dueDateDisplay', 'overdueDays', 'reminderSent', 'createdAt', 'updatedAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidDebtRecord(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(debtId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().companyId == existing().companyId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidDebtRecord(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['amountUzs', 'overdueDays', 'reminderSent', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(debtId);
+      }
+
+      // Audit Logs (append-only)
+      match /auditLogs/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(logId) &&
+                         incoming().keys().hasAll(['userId', 'companyId', 'actorRole', 'actionTitle', 'moduleKey', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'companyId', 'actorRole', 'actionTitle', 'moduleKey', 'amountUzs', 'createdAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidAuditLog(incoming());
+
+        allow update, delete: if false;
+      }
+    }
+  }
+}

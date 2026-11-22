@@ -1,0 +1,188 @@
+{
+  "entities": {
+    "UserWorkspace": {
+      "title": "UserWorkspace",
+      "description": "Authenticated business owner profile, active company selection, role, and SaaS subscription state.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID matching owner." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "email": { "type": "string", "description": "User email address." },
+        "activeCompanyId": { "type": "string", "description": "Currently selected company document ID." },
+        "activeRole": { "type": "string", "description": "Active RBAC role preview key." },
+        "planId": { "type": "string", "enum": ["start", "business", "premium", "enterprise"] },
+        "billingCycle": { "type": "string", "enum": ["monthly", "yearly"] },
+        "subscriptionStatus": { "type": "string", "enum": ["trial", "active", "past_due", "read_only"] },
+        "trialDaysRemaining": { "type": "integer", "description": "Remaining days in 30-day free trial." },
+        "aiQuestionsUsed": { "type": "integer", "description": "Monthly AI CFO questions used." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp." }
+      },
+      "required": ["userId", "displayName", "planId", "subscriptionStatus", "createdAt", "updatedAt"]
+    },
+    "Company": {
+      "title": "Company",
+      "description": "Uzbekistan business entity with STIR, tax regime, and liquid balances.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "stir": { "type": "string", "description": "9-digit Uzbekistan taxpayer ID." },
+        "taxRegime": { "type": "string", "enum": ["QQS", "AYLANMA"] },
+        "industry": { "type": "string", "enum": ["SAVDO", "ISHLAB_CHIQARISH", "XIZMAT"] },
+        "city": { "type": "string" },
+        "qqsRate": { "type": "number" },
+        "inpsRate": { "type": "number" },
+        "incomeTaxRate": { "type": "number" },
+        "cashBalanceUzs": { "type": "integer" },
+        "bankBalanceUzs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "stir", "taxRegime", "industry", "city", "createdAt", "updatedAt"]
+    },
+    "BusinessTransaction": {
+      "title": "BusinessTransaction",
+      "description": "Accounting, sales, purchase, or expense transaction in UZS.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "type": { "type": "string", "enum": ["SALE", "PURCHASE", "EXPENSE", "PAYROLL"] },
+        "category": { "type": "string" },
+        "counterparty": { "type": "string" },
+        "amountUzs": { "type": "integer" },
+        "status": { "type": "string", "enum": ["PAID", "PENDING", "OVERDUE"] },
+        "dateDisplay": { "type": "string" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "companyId", "type", "category", "counterparty", "amountUzs", "status", "dateDisplay", "createdAt", "updatedAt"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Warehouse SKU or factory raw material.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "unit": { "type": "string" },
+        "unitCostUzs": { "type": "integer" },
+        "minThreshold": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "companyId", "sku", "name", "quantity", "unit", "unitCostUzs", "minThreshold", "createdAt", "updatedAt"]
+    },
+    "ProductionOrder": {
+      "title": "ProductionOrder",
+      "description": "Manufacturing BOM order with unit cost and defect tracking.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "productName": { "type": "string" },
+        "bomSummary": { "type": "string" },
+        "targetQty": { "type": "integer" },
+        "completedQty": { "type": "integer" },
+        "unitCostUzs": { "type": "integer" },
+        "defectPercent": { "type": "number" },
+        "status": { "type": "string", "enum": ["PLANNED", "IN_PROGRESS", "COMPLETED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "companyId", "productName", "bomSummary", "targetQty", "completedQty", "unitCostUzs", "defectPercent", "status", "createdAt", "updatedAt"]
+    },
+    "EmployeeRecord": {
+      "title": "EmployeeRecord",
+      "description": "HR employee record with role, attendance, and salary in UZS.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "roleKey": { "type": "string" },
+        "department": { "type": "string" },
+        "phone": { "type": "string" },
+        "attendancePercent": { "type": "integer" },
+        "salaryUzs": { "type": "integer" },
+        "status": { "type": "string", "enum": ["ACTIVE", "ON_LEAVE"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "companyId", "fullName", "roleKey", "department", "phone", "attendancePercent", "salaryUzs", "status", "createdAt", "updatedAt"]
+    },
+    "DebtRecord": {
+      "title": "DebtRecord",
+      "description": "Accounts receivable or payable record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "counterparty": { "type": "string" },
+        "direction": { "type": "string", "enum": ["RECEIVABLE", "PAYABLE"] },
+        "amountUzs": { "type": "integer" },
+        "dueDateDisplay": { "type": "string" },
+        "overdueDays": { "type": "integer" },
+        "reminderSent": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "companyId", "counterparty", "direction", "amountUzs", "dueDateDisplay", "overdueDays", "reminderSent", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable financial and operational audit trail.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "actorRole": { "type": "string" },
+        "actionTitle": { "type": "string" },
+        "moduleKey": { "type": "string" },
+        "amountUzs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "companyId", "actorRole", "actionTitle", "moduleKey", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserWorkspace" },
+      "description": "Owner profile and SaaS subscription workspace"
+    },
+    "/users/{userId}/companies/{companyId}": {
+      "schema": { "$ref": "#/entities/Company" },
+      "description": "User's Uzbekistan companies"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/BusinessTransaction" },
+      "description": "Financial and trade transactions"
+    },
+    "/users/{userId}/inventory/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItem" },
+      "description": "Warehouse inventory and raw materials"
+    },
+    "/users/{userId}/production/{orderId}": {
+      "schema": { "$ref": "#/entities/ProductionOrder" },
+      "description": "Factory BOM and production orders"
+    },
+    "/users/{userId}/employees/{employeeId}": {
+      "schema": { "$ref": "#/entities/EmployeeRecord" },
+      "description": "HR roster, attendance, and payroll"
+    },
+    "/users/{userId}/debts/{debtId}": {
+      "schema": { "$ref": "#/entities/DebtRecord" },
+      "description": "Receivables and payables"
+    },
+    "/users/{userId}/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable operational audit logs"
+    }
+  }
+}

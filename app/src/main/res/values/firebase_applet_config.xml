@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<resources>
+    <string name="firestore_database_id" translatable="false">ai-studio-android-balansai-8aec9025-f661-4c04-9c4e-3cac8688f5d3</string>
+    <string name="recaptcha_site_key" translatable="false">6LemOS0uAAAAAKhb5xW8orlZX3ZWfSC7vGnIJ_GL</string>
+</resources>
